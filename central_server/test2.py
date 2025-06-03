@@ -8,7 +8,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import hashlib
 import time
-app = Flask(__name__)
 
 # RSA 키 로드
 with open("server_private.pem", "rb") as key_file:
@@ -19,7 +18,7 @@ with open("server_private.pem", "rb") as key_file:
     )
 
 def rsa_decrypt(encrypted_data: bytes) -> bytes:
-    print("Received : ",encrypted_data)
+    print("Received : ",encrypted_data.hex().upper)
     return private_key.decrypt(
         encrypted_data,
         padding.OAEP(
@@ -50,17 +49,14 @@ def user_authorize(uid: str, auth_hash: str) -> bool:
 def hash_sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest().upper()
 
-@app.route("/auth", methods=["POST"])
-def auth_handler():
-    try:
-        received = request.get_data()
+def auth_handler(received):
         decrypted = rsa_decrypt(received)
 
         aes_key = decrypted[:32]  # 32 bytes
         encrypted_block = decrypted[32:80]  # 다음 80 bytes
         domain = decrypted[80:]# 나머지
 
-        print("Decrypted : ", decrypted)
+        print("Decrypted : ", decrypted.hex().upper())
         print("aes_key : ", aes_key.hex().upper())
         print("encrypted_block : ", encrypted_block.hex().upper())
         print("domain : ", domain.decode('utf-8'))
@@ -73,11 +69,11 @@ def auth_handler():
 
         auth=decrypted_block[:32]
         print("AUTH : ",auth.hex().upper())
-        timestamp_bytes = decrypted_block[32:36]  
-        timestamp = int.from_bytes(timestamp_bytes, byteorder='big')  
+        timestamp_bytes = decrypted_block[32:36]  # 마지막 블록의 앞 4바이트
+        timestamp = int.from_bytes(timestamp_bytes, byteorder='big')  # big endian
         print("Timestamp:", timestamp)
         if int(time.time()) > timestamp:
-            return jsonify({"status": "expired"}), 403
+            print("Expired")
 
         # DB에서 uid 조회
         conn = sqlite3.connect("database.db")
@@ -88,25 +84,20 @@ def auth_handler():
 
         if not row:
             print("No Uid Matched")
-            return jsonify({"status": "unauthorized"}), 401
-
         uid = row[0]
         print("Hahed UID :", uid)
-        uid_bytes = bytes.fromhex(uid)
         combined = uid.encode('utf-8') + domain
         salt = hash_sha256(combined)
         print("SALT :",salt)
-        salt_bytes = hashlib.sha256(combined).digest() 
-        base = uid_bytes+salt_bytes
-        encrypted= b""
-        for i in range(0, 64, 16):
-            block = base[i:i+16]
-            encrypted += aes_encrypt(aes_key, block )
-        print("Encrypted SALT :",encrypted.hex().upper())
-        return jsonify({"result": encrypted.hex().upper()}), 200
+        salt_bytes = hashlib.sha256(combined).digest()  # 바로 bytes로 얻음
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        encrypted_salt = b""
+        for i in range(0, 32, 16):
+            text_block = salt_bytes[i:i+16]
+            encrypted_salt += aes_encrypt(aes_key, text_block )
+        print("Encrypted SALT :",encrypted_salt.hex().upper())
 
-if __name__ == '__main__':
-    app.run(port=10001)
+
+with open("encrypted.bin","rb") as data:
+    received = data.read()
+    auth_handler(received)

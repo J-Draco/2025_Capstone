@@ -110,3 +110,11 @@ void print_hash(char *name,unsigned int *input){
     }
     printf("\n");
 }
+void print_hex(const char* label, unsigned char* data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+

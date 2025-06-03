@@ -2,10 +2,13 @@
 #include <arpa/inet.h>    // sockaddr_in, inet_pton
 #include <unistd.h>       // close
 #include <string.h>
-#define MAX_PW_LEN 64
+#include "openssl_en_de.c"
+#include "global_data.h"
+#include "sha256.h"
+void send_final_hash(unsigned int *final_hash);
 char received_buffer[96] = {0};
 unsigned int received_auth[8] = {0};
-char received_pw[MAX_PW_LEN + 1] = {0};
+unsigned char received_pw[32] = {0};
 int trigger=0;
 unsigned int hashed_auth[8] = {0};
 unsigned int timestamp=0;
@@ -56,7 +59,7 @@ void receive_pw() {
     }
 
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(8888);  // 포트는 필요에 따라 조절
+    server_addr.sin_port = htons(8888);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
@@ -77,23 +80,20 @@ void receive_pw() {
         return;
     }
 
-    if (len <= 32) {
-        printf("수신 데이터 길이가 너무 짧습니다: %d\n", len);
+    if (len !=64) {
+        printf("수신 데이터 길이가 64바이트가 아닙니다 %d\n", len);
         return;
     }
-
-    int pw_len = len - 32;
-    memcpy(received_pw, buffer, pw_len);
-    received_pw[pw_len] = '\0';
+    memcpy(received_pw, buffer, 32);
 
     //printf("[MCU] 수신된 데이터: %s\n", buffer);
     for (int i = 0; i < 8; i++) {
-        received_auth[i] = ((unsigned char)buffer[pw_len + i * 4 + 0] << 24) |
-                           ((unsigned char)buffer[pw_len + i * 4 + 1] << 16) |
-                           ((unsigned char)buffer[pw_len + i * 4 + 2] << 8)  |
-                           ((unsigned char)buffer[pw_len + i * 4 + 3]);
+        received_auth[i] = ((unsigned char)buffer[32 + i * 4 + 0] << 24) |
+                           ((unsigned char)buffer[32 + i * 4 + 1] << 16) |
+                           ((unsigned char)buffer[32 + i * 4 + 2] << 8)  |
+                           ((unsigned char)buffer[32 + i * 4 + 3]);
     }
-    printf("[MCU] 수신된 비밀번호: %s\n", received_pw);
+    print_hex("[MCU] 수신된 H(비밀번호)", received_pw,32);
     print_hash("[MCU] 수신된 AUTH",received_auth);
 
     close(client_sock);
@@ -101,22 +101,9 @@ void receive_pw() {
 }
 
 int verify_pw(unsigned int *Hashed_UID) {
-    char concat[128] = {0};
-    unsigned int hashed_pw[8] = {0};
+    unsigned char concat[64] = {0};
+    memcpy(concat,received_pw,32);
 
-    int length=0;
-
-    sha256(hashed_pw, received_pw, strlen(received_pw));
-    print_hash("Hashed_PW:",hashed_pw);
-    strcpy(concat,received_pw);
-    length=strlen(received_pw);
-
-    for (int i = 0; i < 8; i++) {
-        concat[i * 4 + 0] = (hashed_pw[i] >> 24) & 0xFF;
-        concat[i * 4 + 1] = (hashed_pw[i] >> 16) & 0xFF;
-        concat[i * 4 + 2] = (hashed_pw[i] >> 8)  & 0xFF;
-        concat[i * 4 + 3] = (hashed_pw[i] >> 0)  & 0xFF;
-    }
     for (int i = 0; i < 8; i++) {
         concat[32 + i * 4 + 0] = (Hashed_UID[i] >> 24) & 0xFF;
         concat[32 + i * 4 + 1] = (Hashed_UID[i] >> 16) & 0xFF;
@@ -124,7 +111,7 @@ int verify_pw(unsigned int *Hashed_UID) {
         concat[32 + i * 4 + 3] = (Hashed_UID[i] >> 0)  & 0xFF;
     }
     // 2. SHA-256 해시
-    sha256(hashed_auth, concat, 64);
+    sha256(hashed_auth, (char *)concat, 64);
     print_hash("H(H(PW)+H(MUC_UID))",hashed_auth);
     for (int i = 0; i < 8; i++) {
         if (hashed_auth[i] != received_auth[i]) {
@@ -194,4 +181,104 @@ void* receive_req_signal(void* arg) {
     close(server_sock);
     pthread_exit(NULL);
 }
+void* fin_out(void* arg) {
 
+    int server_sock, client_sock;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+    char buffer[96] = {0};//uid32바이트+salt32바이트+H(PW)32바이트
+
+    server_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_sock < 0) pthread_exit(NULL);
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(4444);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        close(server_sock);
+        pthread_exit(NULL);
+    }
+    listen(server_sock, 5);
+
+    while (1) {
+        printf("SALT 요청대기중\n");
+        client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_len);
+        if (client_sock < 0) continue;
+
+        int received = recv(client_sock, buffer, sizeof(buffer), 0);
+        if (received != 96) {
+            close(client_sock);
+            printf("[fin_out] received: %d bytes\n", received);
+
+            continue;
+        }
+        unsigned char ciphertext[64], pw_hash[32];
+        memcpy(ciphertext, buffer, 64);
+        memcpy(pw_hash, buffer + 64, 32);
+        print_aes_result("Received Cipher",ciphertext,96);
+        print_hex("Domain pw",pw_hash,32);
+        unsigned char plain[64] = {0};//복호화
+
+        aes_decrypt_openssl(ciphertext,key_bytes,plain,16);
+        aes_decrypt_openssl(ciphertext+16,key_bytes,plain+16,16);
+        aes_decrypt_openssl(ciphertext+32,key_bytes,plain+32,16);
+        aes_decrypt_openssl(ciphertext+48,key_bytes,plain+48,16);
+
+        unsigned char recv_uid_hash[32], salt[32];
+        memcpy(recv_uid_hash, plain, 32);
+        memcpy(salt, plain + 32, 32);
+        // UID 해시 비교
+        unsigned char hashed_uid_bytes[32];
+        for (int i = 0; i < 8; i++) {
+            hashed_uid_bytes[i * 4 + 0] = (Hashed_UID[i] >> 24) & 0xFF;
+            hashed_uid_bytes[i * 4 + 1] = (Hashed_UID[i] >> 16) & 0xFF;
+            hashed_uid_bytes[i * 4 + 2] = (Hashed_UID[i] >> 8) & 0xFF;
+            hashed_uid_bytes[i * 4 + 3] = (Hashed_UID[i] >> 0) & 0xFF;
+        }
+        if (memcmp(recv_uid_hash, hashed_uid_bytes, 32) != 0) {
+            printf("UID 불일치: 인증 실패\n");
+            close(client_sock);
+            continue;
+        }
+        unsigned char pw_salt[64];
+        memcpy(pw_salt, pw_hash, 32);
+        memcpy(pw_salt + 32, salt, 32);
+
+        unsigned int final_hash[8];
+        sha256(final_hash, (char*)pw_salt, 64);
+        print_hash("FINAL PW",final_hash);
+        send_final_hash(final_hash);
+
+    }
+
+    close(server_sock);
+    pthread_exit(NULL);
+}
+
+void send_final_hash(unsigned int *final_hash) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in server_addr;
+    unsigned char bytes[32];
+
+    // final_hash (uint[8]) → bytes[32]
+    for (int i = 0; i < 8; i++) {
+        bytes[i * 4 + 0] = (final_hash[i] >> 24) & 0xFF;
+        bytes[i * 4 + 1] = (final_hash[i] >> 16) & 0xFF;
+        bytes[i * 4 + 2] = (final_hash[i] >> 8) & 0xFF;
+        bytes[i * 4 + 3] = (final_hash[i]) & 0xFF;
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(5556);
+    inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
+
+    if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("사용자 프로그램 연결 실패");
+        close(sock);
+        return;
+    }
+
+    send(sock, bytes, 32, 0);
+    close(sock);
+}

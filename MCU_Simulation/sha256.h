@@ -31,5 +31,6 @@ void sha256(unsigned int *hash_out, char *input, int length);
 // 입력 숫자를 SHA 입력으로 포맷
 void dt_to_bytes(unsigned int dt, char *stream);
 void print_hash(char *name,unsigned int *input);
+void print_hex(const char* label, unsigned char* data, int len);
 #endif //MCU_SIMULATION_SHA256_H
 
