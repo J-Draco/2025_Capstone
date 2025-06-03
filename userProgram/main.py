@@ -8,7 +8,7 @@ window = None
 app = QApplication(sys.argv)
 mcu_running = False
 for proc in psutil.process_iter(['name']):
-    if 'clion' in proc.info['name'].lower():  # 예: 프로세스 이름에 'mcu' 포함 여부
+    if 'clion' in proc.info['name'].lower():  
         mcu_running = True
         break
 
