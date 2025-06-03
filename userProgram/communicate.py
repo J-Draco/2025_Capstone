@@ -1,5 +1,6 @@
 import socket
 import time
+import hashlib
 def communicate():
     HOST = '127.0.0.1'
     PORT = 9999
@@ -30,7 +31,8 @@ def communicate():
     return data  
 
 def sendpw(password,auth):
-    message = password.encode('utf-8')+bytes.fromhex(auth)
+    password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest().upper()
+    message = bytes.fromhex(password_hash)+bytes.fromhex(auth)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         
         sock.connect(("127.0.0.1", 8888))  
@@ -48,10 +50,10 @@ def receive_result():
         with conn:
             result = conn.recv(4)
             return result.decode('utf-8')
-def send_req():
+def send_req(ext_time):
     HOST = '127.0.0.1'
     PORT = 6666  
-    timestamp=int(time.time())
+    timestamp=int(time.time())+ext_time
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         sock.sendall(b'R'+timestamp.to_bytes(4,'big')) 
