@@ -25,7 +25,7 @@ def receive_domain():
     print(f"[도메인 수신됨] {domain}")
     print(f"[도메인 해시됨] {global_v.domain}")
     print(f"[비밀번호 수신됨] {password}")
-    print(f"[비밀번호 해시됨] {password_hash}")
+    print(f"[비밀번호 해시됨] {password_hash.hex().upper()}")
 
     random_bytes = bytes.fromhex(global_v.random);
     encrypted_bytes = bytes.fromhex(global_v.encrypted)

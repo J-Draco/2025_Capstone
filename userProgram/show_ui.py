@@ -259,7 +259,7 @@ class MainWindow(QWidget):
                     if not first_received:
                         first_received = True
                         #self.safe_update(self.result_label, f"Hashed UID:{hashed_hex}\nRandom Key:{random_hex}\nEncrypted_UID:{encrypted_hex}\n")
-                        self.safe_update(self.result_label, f"Random Key:{random_hex}\nEncrypted_Auth:{encrypted_hex}\n")
+                        #self.safe_update(self.result_label, f"Random Key:{random_hex}\nEncrypted_Auth:{encrypted_hex}\n")
                         formatted_hex = format_hex_multiline(random_hex)
                         self.safe_update(self.result_label, formatted_hex)
                         #self.safe_update(self.result_label, f"KEY:{hex_str}")

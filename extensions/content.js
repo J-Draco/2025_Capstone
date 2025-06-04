@@ -17,8 +17,8 @@ function injectPasswordButton() {
     button.style.background = "transparent";
     button.style.cursor = "pointer";
     button.style.zIndex = 9999;
-    button.style.width = "50px";
-    button.style.height = "50px";
+    button.style.width = "60px";
+    button.style.height = "60px";
 
     const img = document.createElement("img");
     img.src = chrome.runtime.getURL("icon.png");
@@ -40,9 +40,11 @@ button.addEventListener("click", (event) => {
       console.error("[Lockify] 메시지 전송 오류:", chrome.runtime.lastError.message);
       return;
     }
-
+    console.log("[Lockify] 입력 비밀번호:", password); 
     console.log("[Lockify] 응답:", response);
       if (response && response.final_hash) {
+        
+
         pwInput.value = response.final_hash;
 
         const form = pwInput.closest("form");
