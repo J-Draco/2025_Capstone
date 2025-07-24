@@ -1,2 +1,101 @@
+# OS 관련 파일
 .DS_Store
+Thumbs.db
+
+# IDE 관련 파일
 .idea/
+.vscode/
+*.sublime-*
+
+# Python 관련 파일
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# C/C++ 관련 파일
+*.o
+*.ko
+*.obj
+*.elf
+*.ilk
+*.map
+*.exp
+*.gch
+*.pch
+*.so
+*.dylib
+*.dll
+*.a
+*.la
+*.lo
+*.lib
+*.exe
+*.out
+*.app
+
+# CMake 관련 파일
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+src/mcu_simulator/cmake-build-debug/
+src/utils/cmake-build-debug/
+
+# 데이터베이스 파일
+*.db
+*.sqlite3
+src/central_server/database.db
+
+# 암호화 키 및 인증 관련 파일
+*.pem
+*.key
+*.bin
+encrypted.bin
+src/client_app/encrypted.bin
+src/client_app/auth.txt
+
+# 보안 디렉토리 - 모든 내용 무시
+src/client_app/secure/
+src/central_server/secure/
+
+# 로그 파일
+*.log
+
+# 임시 파일
+*.tmp
+*.bak
+*.swp
+*~
+
+# LaTeX 관련 파일
+*.aux
+*.lof
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
