@@ -4,7 +4,7 @@
 
 Lockify는 하드웨어 보안 요소를 활용한 고급 비밀번호 관리 시스템입니다. 웹사이트마다 서로 다른 비밀번호를 사용해야 하는 현대 인터넷 환경의 문제를 해결하기 위해 설계되었습니다. 사용자는 하나의 마스터 비밀번호만 기억하면 되고, 시스템이 각 웹사이트에 대해 고유하고 안전한 비밀번호를 자동으로 생성하여 보안성을 크게 향상시킵니다.
 
-[프로젝트 발표 자료 보기](https://github.com/J-Draco/2025_Capstone/releases/download/v1.0.0/2025_CapStone.pptx)
+[Lockify 발표 자료 (PPTX)](https://github.com/J-Draco/2025_Capstone/releases/download/v1.0.0/2025_CapStone.pptx) - 클릭하면 바로 다운로드됩니다.
 
 ## 문제 해결 방안
 
